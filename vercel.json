@@ -1,6 +1,13 @@
 {
-  "version": 2,
-  "routes": [
-    { "src": "/", "dest": "/index.html" }
+  "buildCommand": null,
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://www.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://fonts.googleapis.com; connect-src 'self' https://firestore.googleapis.com https://www.gstatic.com https://meu-controle-financeiro-33c14.firebaseio.com; img-src 'self' data:;" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" }
+      ]
+    }
   ]
 }
