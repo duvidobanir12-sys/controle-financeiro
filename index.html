@@ -777,6 +777,12 @@ function initApp() {
   let dados = [];
   let firstRender = true;
 
+  // Fallback: se o Firebase demorar mais de 8s, mostra o app mesmo assim
+  setTimeout(()=>{
+    document.getElementById('loadingScreen').classList.add('hidden');
+    document.getElementById('app').style.display = 'block';
+  }, 8000);
+
   // Date header
   function setHdrDate() {
     const d = new Date();
