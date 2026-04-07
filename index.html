@@ -730,12 +730,6 @@ let pin = '';
 let metaVal = parseFloat(localStorage.getItem(SK_META)) || 0;
 let appReady = false;
 
-/* ── Numpad ── */
-document.querySelectorAll('.num-btn[data-n]').forEach(b => {
-  b.addEventListener('click', () => { if (pin.length < 4) { pin += b.dataset.n; dotUpdate(); if (pin.length === 4) setTimeout(checkPin, 120); } });
-});
-document.getElementById('btnDel').addEventListener('click', () => { pin = pin.slice(0, -1); dotUpdate(); document.getElementById('loginErro').textContent = ''; });
-
 function dotUpdate() {
   for (let i = 0; i < 4; i++) document.getElementById('dot' + i).classList.toggle('ativo', i < pin.length);
 }
@@ -747,31 +741,48 @@ function checkPin() {
     setTimeout(() => { pin = ''; dotUpdate(); document.querySelectorAll('.pin-dot').forEach(d => d.classList.remove('erro')); document.getElementById('loginErro').textContent = ''; }, 600);
   }
 }
-
-/* ── Unlock ── */
 function unlock() {
   if (appReady) return;
   sessionStorage.setItem(SESSION, '1');
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('loadingScreen').style.display = 'flex';
+  document.getElementById('loadingScreen').classList.remove('hidden');
   initFirebase();
+}
+function iniciarNumpad() {
+  document.querySelectorAll('.num-btn[data-n]').forEach(b => {
+    function press(e) {
+      e.preventDefault();
+      if (pin.length < 4) { pin += b.getAttribute('data-n'); dotUpdate(); if (pin.length === 4) setTimeout(checkPin, 120); }
+    }
+    b.addEventListener('touchstart', press, {passive: false});
+    b.addEventListener('click', press);
+  });
+  const btnDel = document.getElementById('btnDel');
+  function delPress(e) {
+    e.preventDefault();
+    pin = pin.slice(0, -1); dotUpdate(); document.getElementById('loginErro').textContent = '';
+  }
+  btnDel.addEventListener('touchstart', delPress, {passive: false});
+  btnDel.addEventListener('click', delPress);
 }
 
-/* ── Auto-login se ja logou antes (timeout 5s fallback) ── */
-if (sessionStorage.getItem(SESSION) === '1') {
-  // Mostra loading direto
-  document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('loadingScreen').style.display = 'flex';
-  initFirebase();
-  // Se demorar mais que 5s abre sem dados
-  setTimeout(() => {
-    if (!appReady) {
-      document.getElementById('loadingScreen').classList.add('hidden');
-      document.getElementById('app').style.display = 'block';
-      appReady = true;
-    }
-  }, 5000);
-}
+document.addEventListener('DOMContentLoaded', function() {
+  iniciarNumpad();
+  if (sessionStorage.getItem(SESSION) === '1') {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('loadingScreen').style.display = 'flex';
+    document.getElementById('loadingScreen').classList.remove('hidden');
+    initFirebase();
+    setTimeout(() => {
+      if (!appReady) {
+        document.getElementById('loadingScreen').classList.add('hidden');
+        document.getElementById('app').style.display = 'block';
+        appReady = true;
+      }
+    }, 5000);
+  }
+});
 
 /* ═══════════════════════════════════════
    FIREBASE — import dinamico com fallback
