@@ -179,11 +179,17 @@ select.field option { background: #1a1a24; }
 .seg button.on.d { background: var(--red); color: #fff; }
 .seg button.on.r { background: var(--green); color: #07130c; }
 .big { font-size: 1.6rem; font-weight: 800; letter-spacing: -.5px; padding: 14px; text-align: center; }
+.seg3 { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--card2); border-radius: 12px; padding: 4px; }
+.seg3 button { padding: 10px 4px; border-radius: 9px; font-size: .76rem; font-weight: 700; color: var(--muted); transition: .15s; }
+.seg3 button.on { background: var(--accent); color: #fff; }
 .days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
 .days button { padding: 10px 0; border-radius: 10px; background: var(--card2); color: var(--muted); font-size: .72rem; font-weight: 700; }
 .days button.on { background: var(--accent); color: #fff; }
 .check { display: flex; align-items: center; gap: 10px; font-size: .86rem; color: var(--muted); cursor: pointer; }
 .check input { width: 18px; height: 18px; accent-color: var(--accent); }
+.sub-inline { font-size: .72rem; color: var(--faint); margin-top: 6px; }
+.mini-row .field { padding: 9px 12px; }
+.mini-row .x { font-size: 1rem; }
 .menu-item { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 16px 4px; border-bottom: 1px solid var(--line); font-size: .92rem; font-weight: 600; text-align: left; }
 .menu-item small { color: var(--faint); font-weight: 500; font-size: .74rem; }
 .menu-item.danger { color: var(--red); border-bottom: none; }
@@ -344,8 +350,8 @@ select.field option { background: #1a1a24; }
       <input class="field" id="nData" type="date">
     </div>
     <div class="two">
-      <select class="field" id="nPgto"></select>
-      <select class="field" id="nParc"></select>
+      <div><label class="fl">Pagamento</label><select class="field" id="nPgto"></select></div>
+      <div><label class="fl">Parcelas</label><input class="field" id="nParc" type="number" inputmode="numeric" min="1" max="120" value="1"></div>
     </div>
     <button class="btn green" id="btnAdd">Adicionar</button>
   </div>
@@ -377,6 +383,7 @@ select.field option { background: #1a1a24; }
       <div><label class="fl">Categoria</label><select class="field" id="eCat"></select></div>
       <div><label class="fl">Pagamento</label><select class="field" id="ePgto"></select></div>
     </div>
+    <div class="hidden" id="eParcBox"><label class="fl">Número de parcelas</label><input class="field" id="eParc" type="number" inputmode="numeric" min="1" max="120"><p class="sub-inline" id="eParcHint"></p></div>
     <label class="check hidden" id="eTodasBox"><input type="checkbox" id="eTodas"> Aplicar categoria, pagamento e valor a todas as parcelas</label>
     <button class="btn" id="btnSalvar">Salvar</button>
   </div>
@@ -417,7 +424,7 @@ select.field option { background: #1a1a24; }
 <div class="sheet" id="sh-rec">
   <div class="grab"></div>
   <h3>Recorrentes</h3>
-  <p class="sub">Cria o lançamento automaticamente no dia da semana escolhido, quando você abrir o app.</p>
+  <p class="sub">Os lançamentos são criados sozinhos quando você abre o app. Se ficar dias sem abrir, ele cria os que passaram.</p>
   <div class="stack">
     <input class="field" id="rDesc" type="text" placeholder="Descrição (ex: Diária)" autocomplete="off">
     <div class="two">
@@ -425,7 +432,13 @@ select.field option { background: #1a1a24; }
       <select class="field" id="rTipo"><option value="receita">Receita</option><option value="despesa">Despesa</option></select>
     </div>
     <select class="field" id="rCat"></select>
-    <div class="days" id="rDias"></div>
+    <div class="seg3" id="rFreq"><button data-f="semanal" class="on">Semanal</button><button data-f="mensal">Mensal</button><button data-f="dias">A cada X dias</button></div>
+    <div id="rBoxSemanal"><label class="fl">Dia da semana</label><div class="days" id="rDias"></div></div>
+    <div id="rBoxMensal" class="hidden"><label class="fl">Dia do mês</label><input class="field" id="rDiaMes" type="number" inputmode="numeric" min="1" max="31" placeholder="Ex: 5"><p class="sub-inline">Em meses curtos cai no último dia (ex: 31 vira 28/fev).</p></div>
+    <div id="rBoxDias" class="hidden two">
+      <div><label class="fl">A cada quantos dias</label><input class="field" id="rIntervalo" type="number" inputmode="numeric" min="1" max="365" placeholder="Ex: 15"></div>
+      <div><label class="fl">Começando em</label><input class="field" id="rInicio" type="date"></div>
+    </div>
     <button class="btn green" id="btnAddRec">Adicionar</button>
   </div>
   <div id="recList" style="margin-top:18px"></div>
@@ -478,16 +491,35 @@ function fillCats(selId, sel) {
   $(selId).innerHTML = cats.map(c => `<option value="${esc(c)}"${c === sel ? ' selected' : ''}>${esc(c)}</option>`).join('');
 }
 function fillAllCats() { fillCats('nCat'); fillCats('eCat'); fillCats('rCat'); }
+let catEdit = -1;
 function renderCatsList() {
   const cats = getCats();
-  $('catsList').innerHTML = cats.map((c, i) => `<div class="mini-row"><span>${esc(c)}</span><button class="x" data-rm="${i}">✕</button></div>`).join('');
+  $('catsList').innerHTML = cats.map((c, i) => i === catEdit
+    ? `<div class="mini-row"><input class="field" id="catEditInp" value="${esc(c)}" autocomplete="off"><button class="btn sm" data-ok="${i}">OK</button></div>`
+    : `<div class="mini-row"><span>${esc(c)}</span><button class="x" data-ed="${i}" aria-label="Renomear">✎</button><button class="x" data-rm="${i}" aria-label="Remover">✕</button></div>`).join('');
+  if (catEdit >= 0) { const inp = $('catEditInp'); if (inp) { inp.focus(); inp.select(); } }
 }
-$('catsList').addEventListener('click', e => {
-  const b = e.target.closest('[data-rm]'); if (!b) return;
+$('catsList').addEventListener('click', async e => {
   const cats = getCats();
-  if (cats.length <= 1) return toast('Deixe pelo menos uma categoria', true);
-  if (!confirm('Remover "' + cats[+b.dataset.rm] + '"?\nLançamentos antigos continuam com ela.')) return;
-  cats.splice(+b.dataset.rm, 1); saveCats(cats); renderCatsList(); fillAllCats();
+  const ed = e.target.closest('[data-ed]'), ok = e.target.closest('[data-ok]'), rm = e.target.closest('[data-rm]');
+  if (ed) { catEdit = +ed.dataset.ed; return renderCatsList(); }
+  if (ok) {
+    const i = +ok.dataset.ok, antigo = cats[i], novo = $('catEditInp').value.trim();
+    if (!novo) return toast('Digite um nome', true);
+    if (cats.some((c, k) => k !== i && c.toLowerCase() === novo.toLowerCase())) return toast('Já existe', true);
+    catEdit = -1;
+    if (novo !== antigo) {
+      cats[i] = novo; saveCats(cats); fillAllCats();
+      if (window.renameCatDb) await window.renameCatDb(antigo, novo);
+      toast('Categoria renomeada');
+    }
+    return renderCatsList();
+  }
+  if (rm) {
+    if (cats.length <= 1) return toast('Deixe pelo menos uma categoria', true);
+    if (!confirm('Remover "' + cats[+rm.dataset.rm] + '"?\nLançamentos antigos continuam com ela.')) return;
+    cats.splice(+rm.dataset.rm, 1); saveCats(cats); renderCatsList(); fillAllCats();
+  }
 });
 $('btnAddCat').addEventListener('click', () => {
   const nome = $('novaCat').value.trim();
@@ -607,27 +639,55 @@ async function initFirebase() {
       renderCofre();
     }, err => console.error('cofre:', err));
 
-    /* ── Recorrentes: cria 1x por dia; id fixo evita duplicar entre aparelhos ── */
+    /* ── Renomear categoria: atualiza também os lançamentos e recorrentes que usam o nome antigo ── */
+    window.renameCatDb = async (antigo, novo) => {
+      try {
+        const alvo = [...dados.filter(d => d.cat === antigo).map(d => ['lancamentos', d._id]), ...recorrentes.filter(r => r.cat === antigo).map(r => ['recorrentes', r._id])];
+        for (let k = 0; k < alvo.length; k += 400) {
+          const b = writeBatch(db);
+          alvo.slice(k, k + 400).forEach(([c, id]) => b.update(doc(db, c, id), { cat: novo }));
+          await b.commit();
+        }
+      } catch (e) { console.error(e); toast('Erro ao atualizar lançamentos antigos', true); }
+    };
+
+    /* ── Recorrentes: semanal, mensal ou a cada X dias; id fixo evita duplicar entre aparelhos ── */
+    const ocorre = (r, dt, start) => {
+      const f = r.freq || 'semanal';
+      if (f === 'semanal') return dt.getDay() === r.diaSemana;
+      if (f === 'mensal') return dt.getDate() === Math.min(r.diaMes, new Date(dt.getFullYear(), dt.getMonth() + 1, 0).getDate());
+      const diff = Math.round((dt - start) / 86400000);
+      return diff >= 0 && diff % Math.max(1, r.intervalo || 1) === 0;
+    };
+    let gerando = false;
     async function tentarRecorrentes() {
-      if (!loadedL || !loadedR) return;
-      const hoje = ymd(new Date());
-      // guarda quais já foram criadas hoje, para não recriar se você apagar o lançamento
-      let feitas = []; try { feitas = JSON.parse(localStorage.getItem('cf_rec_feitas') || '[]').filter(k => k.endsWith(hoje)); } catch {}
-      const dow = new Date().getDay();
-      for (const r of recorrentes) {
-        if (r.ativo === false || r.diaSemana !== dow) continue;
-        const id = 'rec_' + r._id + '_' + hoje;
-        if (feitas.includes(id) || dados.some(d => d._id === id)) continue;
-        feitas.push(id);
-        try { localStorage.setItem('cf_rec_feitas', JSON.stringify(feitas)); } catch {}
-        try {
-          await setDoc(doc(db, 'lancamentos', id), {
-            desc: '[Automático] ' + r.desc, valor: r.valor, data: hoje, tipo: r.tipo,
-            cat: r.cat || 'Outros', pgto: 'Automatico', pago: false
-          });
-          toast('Recorrente criada: ' + r.desc);
-        } catch (e) { console.error(e); }
-      }
+      if (!loadedL || !loadedR || gerando) return;
+      gerando = true;
+      try {
+        const hojeD = new Date(); hojeD.setHours(0, 0, 0, 0); const hoje = ymd(hojeD);
+        for (const r of recorrentes) {
+          if (r.ativo === false || r.ultimaGeracao === hoje) continue;
+          let start;
+          if (r.inicio) start = pd(r.inicio);
+          else if (r.criadoEm) { const c = new Date(r.criadoEm); start = new Date(c.getFullYear(), c.getMonth(), c.getDate()); }
+          else start = new Date(hojeD);
+          // recorrente antiga (sem ultimaGeracao nem inicio): só passa a gerar a partir de hoje, sem preencher o passado
+          let from = r.ultimaGeracao ? pd(r.ultimaGeracao) : (r.inicio || r.freq ? new Date(start.getTime()) : new Date(hojeD));
+          if (!r.ultimaGeracao) from.setDate(from.getDate() - 1);
+          const cur = new Date(from); cur.setDate(cur.getDate() + 1);
+          let criadas = 0, guard = 0;
+          for (; cur <= hojeD && guard < 800; cur.setDate(cur.getDate() + 1), guard++) {
+            if (cur < start || !ocorre(r, cur, start)) continue;
+            const data = ymd(cur), id = 'rec_' + r._id + '_' + data, desc = '[Automático] ' + r.desc;
+            if (dados.some(d => d._id === id || (d.data === data && d.desc === desc && d.valor === r.valor))) continue;
+            await setDoc(doc(db, 'lancamentos', id), { desc, valor: r.valor, data, tipo: r.tipo, cat: r.cat || 'Outros', pgto: 'Automatico', pago: false });
+            criadas++;
+          }
+          await updateDoc(doc(db, 'recorrentes', r._id), { ultimaGeracao: hoje });
+          if (criadas) toast(criadas > 1 ? criadas + ' lançamentos recorrentes criados' : 'Recorrente criada: ' + r.desc);
+        }
+      } catch (e) { console.error(e); }
+      gerando = false;
     }
 
     /* ═════ RENDER ═════ */
@@ -741,8 +801,14 @@ async function initFirebase() {
       }).join('');
     }
 
+    function freqTxt(r) {
+      const f = r.freq || 'semanal';
+      if (f === 'mensal') return 'Todo dia ' + r.diaMes;
+      if (f === 'dias') return r.intervalo === 1 ? 'Todo dia' : 'A cada ' + r.intervalo + ' dias';
+      return 'Toda ' + (DIAS[r.diaSemana] || '');
+    }
     function renderRec() {
-      $('recList').innerHTML = recorrentes.length ? recorrentes.map(r => `<div class="mini-row"><span>${esc(r.desc)}<small>${DIAS[r.diaSemana]} · <span class="${r.tipo === 'receita' ? 'rec' : 'desp'}">${r.tipo === 'receita' ? '+' : '−'} ${fmt(r.valor)}</span></small></span><button class="x" data-rec-rm="${r._id}">✕</button></div>`).join('')
+      $('recList').innerHTML = recorrentes.length ? recorrentes.map(r => `<div class="mini-row"><span>${esc(r.desc)}<small>${freqTxt(r)} · <span class="${r.tipo === 'receita' ? 'rec' : 'desp'}">${r.tipo === 'receita' ? '+' : '−'} ${fmt(r.valor)}</span></small></span><button class="x" data-rec-rm="${r._id}">✕</button></div>`).join('')
         : '<div class="empty" style="padding:20px">Nenhuma recorrente</div>';
     }
 
@@ -757,7 +823,7 @@ async function initFirebase() {
     $('btnMais').addEventListener('click', () => openSheet('mais'));
     document.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', () => {
       const w = b.dataset.open;
-      if (w === 'cats') renderCatsList();
+      if (w === 'cats') { catEdit = -1; renderCatsList(); }
       if (w === 'rec') renderRec();
       if (w === 'teto') $('tetoInput').value = teto || '';
       openSheet(w);
@@ -774,7 +840,6 @@ async function initFirebase() {
     });
 
     /* ═════ NOVO LANÇAMENTO ═════ */
-    $('nParc').innerHTML = '<option value="1">À vista</option>' + Array.from({ length: 19 }, (_, i) => `<option value="${i + 2}">${i + 2}x</option>`).join('');
     $('nPgto').innerHTML = PGTOS.map(p => `<option value="${p[0]}">${p[1]}</option>`).join('');
     $('ePgto').innerHTML = $('nPgto').innerHTML;
 
@@ -792,10 +857,11 @@ async function initFirebase() {
 
     $('btnAdd').addEventListener('click', async () => {
       const desc = $('nDesc').value.trim(), total = parseFloat($('nValor').value), data = $('nData').value;
-      const parc = parseInt($('nParc').value), cat = $('nCat').value, pgto = $('nPgto').value;
+      const parc = parseInt($('nParc').value) || 1, cat = $('nCat').value, pgto = $('nPgto').value;
       if (!total || total <= 0) return toast('Informe o valor', true);
       if (!desc) return toast('Informe a descrição', true);
       if (!data) return toast('Escolha a data', true);
+      if (parc < 1 || parc > 120) return toast('Parcelas: de 1 a 120', true);
 
       const btn = $('btnAdd'); btn.disabled = true; btn.textContent = 'Salvando…';
       const [y, m, dia] = data.split('-').map(Number);
@@ -849,6 +915,8 @@ async function initFirebase() {
       } catch (e) { console.error(e); toast('Erro ao excluir', true); }
     });
 
+    const grupoDe = x => { const i = info(x); return dados.filter(d => { const p = info(d); return p.base === i.base && p.total === i.total && d.tipo === x.tipo; }).sort((a, b) => info(a).num - info(b).num); };
+
     $('acEditar').addEventListener('click', () => {
       const x = itemAtual, i = info(x);
       $('eDesc').value = x.desc; $('eValor').value = x.valor; $('eData').value = x.data;
@@ -856,6 +924,12 @@ async function initFirebase() {
       $('ePgto').value = PGTOS.some(p => p[0] === x.pgto) ? x.pgto : 'Dinheiro';
       $('eTodas').checked = false;
       $('eTodasBox').classList.toggle('hidden', !(i.total > 1));
+      $('eParcBox').classList.toggle('hidden', !(i.total > 1));
+      if (i.total > 1) {
+        const g = grupoDe(x);
+        $('eParc').value = i.total;
+        $('eParcHint').textContent = 'Total da compra: ' + fmt(g.reduce((t, y) => t + y.valor, 0)) + '. Ao mudar o número, esse total é redividido.';
+      }
       openSheet('editar');
     });
 
@@ -866,7 +940,23 @@ async function initFirebase() {
       if (!desc || !valor || !data) return toast('Preencha todos os campos', true);
       try {
         const i = info(x);
-        if ($('eTodas').checked && i.total > 1) {
+        const novoN = parseInt($('eParc').value) || i.total;
+        if (i.total > 1 && novoN !== i.total) {
+          if (novoN < 1 || novoN > 120) return toast('Parcelas: de 1 a 120', true);
+          const g = grupoDe(x), total = g.reduce((t, y) => t + y.valor, 0);
+          const nomeBase = (desc.match(RE_PARC) ? desc.match(RE_PARC)[1] : desc).trim();
+          const d1 = pd(g[0].data), dia = d1.getDate(), base = Math.floor(total / novoN * 100) / 100;
+          const b = writeBatch(db);
+          for (let k = 0; k < novoN; k++) {
+            const mp = d1.getMonth() + k, yy = d1.getFullYear() + Math.floor(mp / 12), mm = mp % 12;
+            const dt = yy + '-' + String(mm + 1).padStart(2, '0') + '-' + String(Math.min(dia, new Date(yy, mm + 1, 0).getDate())).padStart(2, '0');
+            const campos = { desc: novoN > 1 ? `${nomeBase} (${k + 1}/${novoN})` : nomeBase, valor: k === novoN - 1 ? round2(total - base * (novoN - 1)) : base, data: dt, cat, pgto };
+            if (g[k]) b.update(doc(db, 'lancamentos', g[k]._id), campos);
+            else b.set(doc(collection(db, 'lancamentos')), { ...campos, tipo: x.tipo, pago: false });
+          }
+          g.slice(novoN).forEach(y => b.delete(doc(db, 'lancamentos', y._id)));
+          await b.commit();
+        } else if ($('eTodas').checked && i.total > 1) {
           const grupo = dados.filter(d => { const p = info(d); return p.base === i.base && p.total === i.total; });
           const b = writeBatch(db);
           grupo.forEach(g => b.update(doc(db, 'lancamentos', g._id), { cat, pgto, valor }));
@@ -906,18 +996,36 @@ async function initFirebase() {
     });
 
     /* ═════ RECORRENTES ═════ */
+    let freqRec = 'semanal';
     $('rDias').innerHTML = DIAS.map((d, i) => `<button data-d="${i}">${d}</button>`).join('');
     $('rDias').addEventListener('click', e => {
       const b = e.target.closest('button'); if (!b) return;
       diaRec = +b.dataset.d;
       document.querySelectorAll('#rDias button').forEach(x => x.classList.toggle('on', x === b));
     });
+    $('rFreq').addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      freqRec = b.dataset.f;
+      document.querySelectorAll('#rFreq button').forEach(x => x.classList.toggle('on', x === b));
+      $('rBoxSemanal').classList.toggle('hidden', freqRec !== 'semanal');
+      $('rBoxMensal').classList.toggle('hidden', freqRec !== 'mensal');
+      $('rBoxDias').classList.toggle('hidden', freqRec !== 'dias');
+      if (freqRec === 'dias' && !$('rInicio').value) $('rInicio').value = ymd(new Date());
+    });
     $('btnAddRec').addEventListener('click', async () => {
       const desc = $('rDesc').value.trim(), valor = parseFloat($('rValor').value);
-      if (!desc || !valor || diaRec === null) return toast('Preencha tudo e escolha o dia', true);
+      if (!desc || !valor || valor <= 0) return toast('Informe descrição e valor', true);
+      const rec = { desc, valor, tipo: $('rTipo').value, cat: $('rCat').value, freq: freqRec, diaSemana: null, diaMes: null, intervalo: null, inicio: ymd(new Date()), ativo: true, criadoEm: new Date().toISOString() };
+      if (freqRec === 'semanal') { if (diaRec === null) return toast('Escolha o dia da semana', true); rec.diaSemana = diaRec; }
+      else if (freqRec === 'mensal') { const m = parseInt($('rDiaMes').value); if (!(m >= 1 && m <= 31)) return toast('Dia do mês: de 1 a 31', true); rec.diaMes = m; }
+      else {
+        const n = parseInt($('rIntervalo').value); if (!(n >= 1 && n <= 365)) return toast('Informe de quantos em quantos dias', true);
+        if (!$('rInicio').value) return toast('Escolha quando começa', true);
+        rec.intervalo = n; rec.inicio = $('rInicio').value;
+      }
       try {
-        await addDoc(COL_REC, { desc, valor, tipo: $('rTipo').value, cat: $('rCat').value, diaSemana: diaRec, ativo: true, criadoEm: new Date().toISOString() });
-        $('rDesc').value = ''; $('rValor').value = ''; diaRec = null;
+        await addDoc(COL_REC, rec);
+        $('rDesc').value = ''; $('rValor').value = ''; $('rDiaMes').value = ''; $('rIntervalo').value = ''; diaRec = null;
         document.querySelectorAll('#rDias button').forEach(x => x.classList.remove('on'));
         toast('Recorrente adicionada');
       } catch (e) { console.error(e); toast('Erro ao salvar', true); }
