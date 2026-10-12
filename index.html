@@ -424,7 +424,7 @@ select.field option { background: #1a1a24; }
 <div class="sheet" id="sh-rec">
   <div class="grab"></div>
   <h3>Recorrentes</h3>
-  <p class="sub">Cria os lançamentos sozinho, já adiantando os próximos 2–3 meses pra você ver no mês. Se ficar dias sem abrir o app, ele completa quando você voltar.</p>
+  <p class="sub">Cria os lançamentos sozinho, sempre com pelo menos 1 ano adiantado. Se ficar dias sem abrir o app, ele completa quando você voltar.</p>
   <div class="stack">
     <input class="field" id="rDesc" type="text" placeholder="Descrição (ex: Diária)" autocomplete="off">
     <div class="two">
@@ -663,8 +663,8 @@ async function initFirebase() {
       gerando = true;
       try {
         const hojeD = new Date(); hojeD.setHours(0, 0, 0, 0); const hoje = ymd(hojeD);
-        // gera até o fim do mês que vem + 1 (≈ 2–3 meses à frente) pra aparecer nos meses futuros
-        const horizD = new Date(hojeD.getFullYear(), hojeD.getMonth() + 3, 0), horiz = ymd(horizD);
+        // gera sempre pelo menos 1 ano à frente (até o fim do mesmo mês, 12 meses depois)
+        const horizD = new Date(hojeD.getFullYear(), hojeD.getMonth() + 13, 0), horiz = ymd(horizD);
         for (const r of recorrentes) {
           if (r.ativo === false || (r.ultimaGeracao && r.ultimaGeracao >= horiz)) continue;
           let start;
