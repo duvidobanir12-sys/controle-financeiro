@@ -96,7 +96,9 @@ input, select { font-family: var(--f); }
 
 /* ── Lista ── */
 .list { padding: 0 16px; }
-.day { font-size: .7rem; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--faint); margin: 18px 0 4px; }
+.day { display: flex; justify-content: space-between; align-items: baseline; font-size: .7rem; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--faint); margin: 18px 0 4px; }
+.day b { font-size: .78rem; letter-spacing: -.2px; text-transform: none; color: var(--muted); }
+.day b.neg { color: var(--red); }
 .day.today { color: var(--accent); }
 .row { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line); }
 .chk { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--faint); flex-shrink: 0; display: grid; place-items: center; transition: .15s; }
@@ -675,6 +677,9 @@ async function initFirebase() {
 
       if (!l.length) { $('lista').innerHTML = `<div class="empty">${items.length ? 'Nada encontrado' : 'Nenhum lançamento neste mês'}</div>`; return; }
 
+      // saldo acumulado ao fim de cada dia (todos os lançamentos do mês, sem filtro)
+      const saldoDia = {}; let acum = 0;
+      [...items].sort((a, b) => a.data.localeCompare(b.data)).forEach(x => { acum += x.tipo === 'receita' ? x.valor : -x.valor; saldoDia[x.data] = round2(acum); });
       const porDia = {};
       l.forEach(x => (porDia[x.data] = porDia[x.data] || []).push(x));
       $('lista').innerHTML = Object.keys(porDia).sort().reverse().map(dt => {
@@ -689,7 +694,7 @@ async function initFirebase() {
             <div class="row-v ${rec ? 'rec' : 'desp'}" data-act="menu" data-id="${x._id}">${rec ? '+' : '−'} ${fmt(x.valor)}</div>
           </div>`;
         }).join('');
-        return `<div class="day${dt === hoje ? ' today' : ''}">${nomeDia(dt)}</div>${rows}`;
+        return `<div class="day${dt === hoje ? ' today' : ''}"><span>${nomeDia(dt)}</span><b class="${saldoDia[dt] < 0 ? 'neg' : ''}">${fmt(saldoDia[dt])}</b></div>${rows}`;
       }).join('');
     }
 
